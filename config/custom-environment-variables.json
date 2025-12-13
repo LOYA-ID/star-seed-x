@@ -6,7 +6,10 @@
     "password": "SOURCE_DB_PASSWORD",
     "database": "SOURCE_DB_NAME",
     "table": "SOURCE_TABLE_NAME",
-    "connectionPoolSize": "SOURCE_POOL_SIZE"
+    "connectionPoolSize": "SOURCE_POOL_SIZE",
+    "queryTimeout": "SOURCE_QUERY_TIMEOUT",
+    "maxRetries": "SOURCE_MAX_RETRIES",
+    "retryDelay": "SOURCE_RETRY_DELAY"
   },
   "destination": {
     "host": "DEST_DB_HOST",
@@ -15,14 +18,20 @@
     "password": "DEST_DB_PASSWORD",
     "database": "DEST_DB_NAME",
     "table": "DEST_TABLE_NAME",
-    "connectionPoolSize": "DEST_POOL_SIZE"
+    "connectionPoolSize": "DEST_POOL_SIZE",
+    "queryTimeout": "DEST_QUERY_TIMEOUT",
+    "maxRetries": "DEST_MAX_RETRIES",
+    "retryDelay": "DEST_RETRY_DELAY"
   },
   "etl": {
     "batchSize": "ETL_BATCH_SIZE",
     "primaryKeyColumn": "ETL_PRIMARY_KEY_COLUMN",
     "deletedFlagColumn": "ETL_DELETED_FLAG_COLUMN",
     "sqlQuery": "ETL_SQL_QUERY",
-    "cronSchedule": "ETL_CRON_SCHEDULE"
+    "cronSchedule": "ETL_CRON_SCHEDULE",
+    "maxRetries": "ETL_MAX_RETRIES",
+    "retryDelay": "ETL_RETRY_DELAY",
+    "forceFullRefresh": "ETL_FORCE_FULL_REFRESH"
   },
   "sqlite": {
     "dbPath": "SQLITE_DB_PATH"

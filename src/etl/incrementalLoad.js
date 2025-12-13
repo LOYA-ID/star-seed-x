@@ -4,7 +4,7 @@ const SchemaValidator = require('../utils/schemaValidator');
 const sqliteManager = require('../database/sqlite');
 
 /**
- * Incremental load ETL processor
+ * Incremental load ETL processor with transaction support and retry logic
  */
 class IncrementalLoadProcessor {
   constructor(sourcePool, destPool, primaryKeyColumn) {
@@ -14,10 +14,11 @@ class IncrementalLoadProcessor {
     this.destTable = config.destination.table;
     this.batchSize = config.etl.batchSize;
     this.primaryKeyColumn = primaryKeyColumn || config.etl.primaryKeyColumn;
+    this.maxRetries = config.etl.maxRetries || 3;
   }
 
   /**
-   * Execute incremental load process
+   * Execute incremental load process with transaction support
    * @returns {Object} Processing result
    */
   async execute() {
@@ -77,7 +78,8 @@ class IncrementalLoadProcessor {
 
         logger.debug(`Executing batch ${batchNumber}`);
 
-        const rows = await this.sourcePool.query(batchQuery, queryParams);
+        // Fetch rows with retry
+        const rows = await this.sourcePool.queryWithRetry(batchQuery, queryParams);
 
         if (rows.length === 0) {
           logger.info('No more new rows to process');
@@ -86,26 +88,19 @@ class IncrementalLoadProcessor {
 
         logger.info(`Processing batch ${batchNumber}: ${rows.length} rows`);
 
-        // Process each row individually
-        for (const row of rows) {
-          try {
-            await this.insertRow(row, columns);
-            result.rowsInserted++;
-            result.rowsProcessed++;
+        // Process batch with transaction
+        const batchResult = await this.processBatchWithTransaction(rows, columns);
+        
+        result.rowsInserted += batchResult.inserted;
+        result.rowsProcessed += batchResult.processed;
+        result.errors.push(...batchResult.errors);
 
-            // Track the last processed primary key value
-            currentLastValue = row[this.primaryKeyColumn];
-          } catch (error) {
-            logger.error(`Error inserting row: ${error.message}`);
-            result.errors.push({
-              row: row,
-              error: error.message
-            });
-            result.rowsProcessed++;
-          }
+        // Update current last value
+        if (batchResult.lastPk !== null) {
+          currentLastValue = batchResult.lastPk;
         }
 
-        // Update last processed value after each batch
+        // Update last processed value after each batch (checkpoint)
         if (currentLastValue !== null) {
           sqliteManager.updateLastProcessedValue(
             this.sourceTable,
@@ -115,7 +110,7 @@ class IncrementalLoadProcessor {
           );
         }
 
-        logger.info(`Batch ${batchNumber} completed: ${rows.length} rows processed`);
+        logger.info(`Batch ${batchNumber} completed: ${batchResult.inserted} rows inserted`);
 
         batchNumber++;
       }
@@ -131,15 +126,78 @@ class IncrementalLoadProcessor {
   }
 
   /**
-   * Insert a single row into destination table
+   * Process a batch of rows within a transaction
+   * @param {Array} rows - Rows to process
+   * @param {Array} columns - Column names
+   * @returns {Object} Batch processing result
+   */
+  async processBatchWithTransaction(rows, columns) {
+    const batchResult = {
+      processed: 0,
+      inserted: 0,
+      errors: [],
+      lastPk: null
+    };
+
+    let conn;
+    try {
+      // Begin transaction
+      conn = await this.destPool.beginTransaction();
+      logger.debug('Transaction started for batch');
+
+      // Process each row within the transaction
+      for (const row of rows) {
+        try {
+          await this.insertRowInTransaction(conn, row, columns);
+          batchResult.inserted++;
+          batchResult.processed++;
+
+          // Track the last processed primary key value
+          batchResult.lastPk = row[this.primaryKeyColumn];
+        } catch (error) {
+          logger.error(`Error inserting row: ${error.message}`);
+          batchResult.errors.push({
+            row: row,
+            error: error.message
+          });
+          batchResult.processed++;
+          
+          // Still track primary key to continue
+          batchResult.lastPk = row[this.primaryKeyColumn];
+        }
+      }
+
+      // Commit transaction
+      await this.destPool.commitTransaction(conn);
+      logger.debug(`Transaction committed: ${batchResult.inserted} rows inserted`);
+
+    } catch (error) {
+      // Rollback on error
+      if (conn) {
+        try {
+          await this.destPool.rollbackTransaction(conn);
+          logger.warn('Transaction rolled back due to error');
+        } catch (rollbackError) {
+          logger.error(`Rollback failed: ${rollbackError.message}`);
+        }
+      }
+      throw error;
+    }
+
+    return batchResult;
+  }
+
+  /**
+   * Insert a single row within a transaction with retry logic
+   * @param {Object} conn - Database connection with active transaction
    * @param {Object} row - Row data
    * @param {Array} columns - Column names
    */
-  async insertRow(row, columns) {
+  async insertRowInTransaction(conn, row, columns) {
     const insertSQL = SchemaValidator.buildInsertStatement(this.destTable, columns);
     const values = columns.map(col => row[col]);
 
-    await this.destPool.query(insertSQL, values);
+    await this.destPool.queryInTransactionWithRetry(conn, insertSQL, values);
     logger.debug(`Inserted row with PK ${row[this.primaryKeyColumn]}`);
   }
 }

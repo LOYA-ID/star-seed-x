@@ -40,7 +40,10 @@ const appConfig = {
     password: config.get('source.password'),
     database: config.get('source.database'),
     table: config.get('source.table'),
-    connectionPoolSize: config.get('source.connectionPoolSize')
+    connectionPoolSize: config.get('source.connectionPoolSize'),
+    queryTimeout: config.get('source.queryTimeout'),
+    maxRetries: config.get('source.maxRetries'),
+    retryDelay: config.get('source.retryDelay')
   },
   destination: {
     host: config.get('destination.host'),
@@ -49,14 +52,20 @@ const appConfig = {
     password: config.get('destination.password'),
     database: config.get('destination.database'),
     table: config.get('destination.table'),
-    connectionPoolSize: config.get('destination.connectionPoolSize')
+    connectionPoolSize: config.get('destination.connectionPoolSize'),
+    queryTimeout: config.get('destination.queryTimeout'),
+    maxRetries: config.get('destination.maxRetries'),
+    retryDelay: config.get('destination.retryDelay')
   },
   etl: {
     batchSize: config.get('etl.batchSize'),
     primaryKeyColumn: config.get('etl.primaryKeyColumn'),
     deletedFlagColumn: config.get('etl.deletedFlagColumn'),
     sqlQuery: config.get('etl.sqlQuery'),
-    cronSchedule: config.get('etl.cronSchedule')
+    cronSchedule: config.get('etl.cronSchedule'),
+    maxRetries: config.get('etl.maxRetries'),
+    retryDelay: config.get('etl.retryDelay'),
+    forceFullRefresh: config.get('etl.forceFullRefresh')
   },
   sqlite: {
     dbPath: config.get('sqlite.dbPath')
