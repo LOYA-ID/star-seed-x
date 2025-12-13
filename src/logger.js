@@ -9,8 +9,8 @@ if (!fs.existsSync(logDir)) {
   fs.mkdirSync(logDir, { recursive: true });
 }
 
-// Custom format for logs
-const logFormat = winston.format.combine(
+// Format for file logs (no colors)
+const fileFormat = winston.format.combine(
   winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
   winston.format.errors({ stack: true }),
   winston.format.printf(({ level, message, timestamp, stack }) => {
@@ -21,17 +21,27 @@ const logFormat = winston.format.combine(
   })
 );
 
+// Format for console logs (with colors)
+const consoleFormat = winston.format.combine(
+  winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
+  winston.format.errors({ stack: true }),
+  winston.format.colorize({ all: false, level: true }),
+  winston.format.printf(({ level, message, timestamp, stack }) => {
+    if (stack) {
+      return `${timestamp} [${level}]: ${message}\n${stack}`;
+    }
+    return `${timestamp} [${level}]: ${message}`;
+  })
+);
+
 // Create logger instance
 const logger = winston.createLogger({
   level: config.logging.level,
-  format: logFormat,
+  format: fileFormat,
   transports: [
     // Console transport
     new winston.transports.Console({
-      format: winston.format.combine(
-        winston.format.colorize(),
-        logFormat
-      )
+      format: consoleFormat
     }),
     // File transport for all logs
     new winston.transports.File({

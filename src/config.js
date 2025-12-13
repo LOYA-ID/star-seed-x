@@ -65,7 +65,8 @@ const appConfig = {
     cronSchedule: config.get('etl.cronSchedule'),
     maxRetries: config.get('etl.maxRetries'),
     retryDelay: config.get('etl.retryDelay'),
-    forceFullRefresh: config.get('etl.forceFullRefresh')
+    forceFullRefresh: config.get('etl.forceFullRefresh'),
+    recordDelay: config.get('etl.recordDelay')
   },
   sqlite: {
     dbPath: config.get('sqlite.dbPath')

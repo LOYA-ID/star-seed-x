@@ -31,7 +31,8 @@
     "cronSchedule": "*/5 * * * *",
     "maxRetries": 3,
     "retryDelay": 1000,
-    "forceFullRefresh": false
+    "forceFullRefresh": false,
+    "recordDelay": 0
   },
   "sqlite": {
     "dbPath": "./data/etl_state.db"
