@@ -8,9 +8,10 @@ class SchemaValidator {
    * Compare source and destination table schemas
    * @param {Array} sourceSchema - Source table schema
    * @param {Array} destSchema - Destination table schema
+   * @param {string} primaryKeyColumn - Primary key column name (optional)
    * @returns {Object} Validation result
    */
-  static validateSchemaCompatibility(sourceSchema, destSchema) {
+  static validateSchemaCompatibility(sourceSchema, destSchema, primaryKeyColumn = null) {
     const result = {
       isCompatible: true,
       errors: [],
@@ -53,6 +54,16 @@ class SchemaValidator {
       }
     }
 
+    // Validate primary key in destination
+    if (primaryKeyColumn) {
+      const pkValidation = this.validateDestinationPrimaryKey(destSchema, primaryKeyColumn);
+      if (!pkValidation.isValid) {
+        result.errors.push(...pkValidation.errors);
+        result.isCompatible = false;
+      }
+      result.warnings.push(...pkValidation.warnings);
+    }
+
     // Log validation results
     if (result.isCompatible) {
       logger.info('Schema validation passed');
@@ -62,6 +73,58 @@ class SchemaValidator {
 
     result.errors.forEach(err => logger.error(`Schema error: ${err}`));
     result.warnings.forEach(warn => logger.warn(`Schema warning: ${warn}`));
+
+    return result;
+  }
+
+  /**
+   * Validate destination table primary key configuration
+   * @param {Array} destSchema - Destination table schema
+   * @param {string} primaryKeyColumn - Expected primary key column name
+   * @returns {Object} Validation result
+   */
+  static validateDestinationPrimaryKey(destSchema, primaryKeyColumn) {
+    const result = {
+      isValid: true,
+      errors: [],
+      warnings: []
+    };
+
+    // Find the primary key column in destination schema
+    const pkColumn = destSchema.find(col => col.COLUMN_NAME === primaryKeyColumn);
+
+    if (!pkColumn) {
+      result.errors.push(
+        `Primary key column '${primaryKeyColumn}' not found in destination table`
+      );
+      result.isValid = false;
+      return result;
+    }
+
+    // Check if destination primary key column is actually a PRIMARY KEY
+    if (pkColumn.COLUMN_KEY !== 'PRI') {
+      result.errors.push(
+        `Column '${primaryKeyColumn}' is not a PRIMARY KEY in destination table. ` +
+        `Expected COLUMN_KEY='PRI', got '${pkColumn.COLUMN_KEY || 'none'}'`
+      );
+      result.isValid = false;
+    }
+
+    // Check if destination primary key has AUTO_INCREMENT (should NOT have it)
+    const extra = (pkColumn.EXTRA || '').toLowerCase();
+    if (extra.includes('auto_increment')) {
+      result.errors.push(
+        `Destination primary key '${primaryKeyColumn}' has AUTO_INCREMENT. ` +
+        `This will cause conflicts when inserting data from source. ` +
+        `Please remove AUTO_INCREMENT from destination table.`
+      );
+      result.isValid = false;
+    }
+
+    // Log validation info
+    if (result.isValid) {
+      logger.info(`Destination primary key '${primaryKeyColumn}' validated successfully`);
+    }
 
     return result;
   }

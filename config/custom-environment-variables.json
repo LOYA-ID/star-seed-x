@@ -31,7 +31,8 @@
     "cronSchedule": "ETL_CRON_SCHEDULE",
     "maxRetries": "ETL_MAX_RETRIES",
     "retryDelay": "ETL_RETRY_DELAY",
-    "forceFullRefresh": "ETL_FORCE_FULL_REFRESH"
+    "forceFullRefresh": "ETL_FORCE_FULL_REFRESH",
+    "recordDelay": "ETL_RECORD_DELAY"
   },
   "sqlite": {
     "dbPath": "SQLITE_DB_PATH"

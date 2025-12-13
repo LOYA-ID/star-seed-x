@@ -14,7 +14,8 @@ class IncrementalLoadProcessor {
     this.destTable = config.destination.table;
     this.batchSize = config.etl.batchSize;
     this.primaryKeyColumn = primaryKeyColumn || config.etl.primaryKeyColumn;
-    this.maxRetries = config.etl.maxRetries || 3;
+    this.maxRetries = config.etl.maxRetries;
+    this.recordDelay = config.etl.recordDelay;
   }
 
   /**
@@ -154,6 +155,11 @@ class IncrementalLoadProcessor {
 
           // Track the last processed primary key value
           batchResult.lastPk = row[this.primaryKeyColumn];
+
+          // Apply delay between records if configured
+          if (this.recordDelay > 0) {
+            await this.sleep(this.recordDelay);
+          }
         } catch (error) {
           logger.error(`Error inserting row: ${error.message}`);
           batchResult.errors.push({
@@ -199,6 +205,14 @@ class IncrementalLoadProcessor {
 
     await this.destPool.queryInTransactionWithRetry(conn, insertSQL, values);
     logger.debug(`Inserted row with PK ${row[this.primaryKeyColumn]}`);
+  }
+
+  /**
+   * Sleep helper function
+   * @param {number} ms - Milliseconds to sleep
+   */
+  sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
   }
 }
 

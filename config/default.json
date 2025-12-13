@@ -1,23 +1,23 @@
 {
   "source": {
-    "host": "localhost",
+    "host": "172.20.55.89",
     "port": 3306,
-    "user": "root",
-    "password": "",
-    "database": "source_db",
-    "table": "source_table",
+    "user": "devel",
+    "password": "devel",
+    "database": "etl-source",
+    "table": "tbl_audit_update_code",
     "connectionPoolSize": 5,
     "queryTimeout": 300000,
     "maxRetries": 3,
     "retryDelay": 1000
   },
   "destination": {
-    "host": "localhost",
+    "host": "172.20.55.89",
     "port": 3306,
-    "user": "root",
-    "password": "",
-    "database": "destination_db",
-    "table": "destination_table",
+    "user": "devel",
+    "password": "devel",
+    "database": "etl-destination",
+    "table": "tbl_audit_update_code",
     "connectionPoolSize": 5,
     "queryTimeout": 300000,
     "maxRetries": 3,
@@ -31,7 +31,8 @@
     "cronSchedule": "*/5 * * * *",
     "maxRetries": 3,
     "retryDelay": 1000,
-    "forceFullRefresh": false
+    "forceFullRefresh": false,
+    "recordDelay": 0
   },
   "sqlite": {
     "dbPath": "./data/etl_state.db"

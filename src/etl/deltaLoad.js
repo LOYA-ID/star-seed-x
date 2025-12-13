@@ -15,7 +15,8 @@ class DeltaLoadProcessor {
     this.batchSize = config.etl.batchSize;
     this.primaryKeyColumn = primaryKeyColumn || config.etl.primaryKeyColumn;
     this.deletedFlagColumn = config.etl.deletedFlagColumn;
-    this.maxRetries = config.etl.maxRetries || 3;
+    this.maxRetries = config.etl.maxRetries;
+    this.recordDelay = config.etl.recordDelay;
   }
 
   /**
@@ -119,6 +120,11 @@ class DeltaLoadProcessor {
           await this.deleteRowInTransaction(conn, id);
           batchResult.deleted++;
           batchResult.processed++;
+
+          // Apply delay between records if configured
+          if (this.recordDelay > 0) {
+            await this.sleep(this.recordDelay);
+          }
         } catch (error) {
           logger.error(`Error deleting row with ID ${id}: ${error.message}`);
           batchResult.errors.push({
@@ -162,6 +168,14 @@ class DeltaLoadProcessor {
 
     await this.destPool.queryInTransactionWithRetry(conn, deleteSQL, [id]);
     logger.debug(`Deleted row with PK ${id}`);
+  }
+
+  /**
+   * Sleep helper function
+   * @param {number} ms - Milliseconds to sleep
+   */
+  sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
   }
 }
 

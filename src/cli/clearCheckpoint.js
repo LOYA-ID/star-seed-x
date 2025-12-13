@@ -61,7 +61,7 @@ try {
   if (clearAll) {
     console.log('\nClearing ALL checkpoints globally...');
     const count = sqliteManager.clearAllCheckpointsGlobal();
-    console.log(`✅ Cleared ${count} checkpoint(s) globally`);
+    console.log(`[OK] Cleared ${count} checkpoint(s) globally`);
   } else {
     const sourceTable = config.source.table;
     const destTable = config.destination.table;
@@ -72,15 +72,15 @@ try {
     
     const result = sqliteManager.clearAllState(sourceTable, destTable);
     
-    console.log(`✅ Cleared ${result.checkpoints} checkpoint(s)`);
-    console.log(`✅ Cleared ${result.incrementalState} incremental state record(s)`);
+    console.log(`[OK] Cleared ${result.checkpoints} checkpoint(s)`);
+    console.log(`[OK] Cleared ${result.incrementalState} incremental state record(s)`);
   }
 
-  console.log('\n✅ Done! ETL will start fresh on next run.');
+  console.log('\n[OK] Done! ETL will start fresh on next run.');
   console.log('========================================');
 
 } catch (error) {
-  console.error(`\n❌ Error: ${error.message}`);
+  console.error(`\n[ERROR] ${error.message}`);
   process.exit(1);
 } finally {
   sqliteManager.close();

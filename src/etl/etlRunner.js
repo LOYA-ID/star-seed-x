@@ -109,7 +109,12 @@ class ETLRunner {
       
       logger.info(`Source query returns ${sourceSchema.length} columns: ${sourceSchema.map(c => c.COLUMN_NAME).join(', ')}`);
       
-      const schemaValidation = SchemaValidator.validateSchemaCompatibility(sourceSchema, destSchema);
+      // Validate schema compatibility including primary key check
+      const schemaValidation = SchemaValidator.validateSchemaCompatibility(
+        sourceSchema, 
+        destSchema, 
+        config.etl.primaryKeyColumn
+      );
       if (!schemaValidation.isCompatible) {
         throw new Error('Schema validation failed: ' + schemaValidation.errors.join(', '));
       }

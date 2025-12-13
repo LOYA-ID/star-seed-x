@@ -14,8 +14,9 @@ class FullLoadProcessor {
     this.destTable = config.destination.table;
     this.batchSize = config.etl.batchSize;
     this.primaryKeyColumn = config.etl.primaryKeyColumn;
-    this.maxRetries = config.etl.maxRetries || 3;
-    this.retryDelay = config.etl.retryDelay || 1000;
+    this.maxRetries = config.etl.maxRetries;
+    this.retryDelay = config.etl.retryDelay;
+    this.recordDelay = config.etl.recordDelay;
   }
 
   /**
@@ -188,6 +189,11 @@ class FullLoadProcessor {
           if (hasPrimaryKey) {
             batchResult.lastPk = row[this.primaryKeyColumn];
           }
+
+          // Apply delay between records if configured
+          if (this.recordDelay > 0) {
+            await this.sleep(this.recordDelay);
+          }
         } catch (error) {
           // Log error but continue processing other rows
           logger.error(`Error inserting row: ${error.message}`);
@@ -237,6 +243,14 @@ class FullLoadProcessor {
     // Use retry logic for transient errors
     await this.destPool.queryInTransactionWithRetry(conn, insertSQL, values);
     logger.debug(`Inserted row with values: ${JSON.stringify(values).substring(0, 100)}...`);
+  }
+
+  /**
+   * Sleep helper function
+   * @param {number} ms - Milliseconds to sleep
+   */
+  sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
   }
 }
 
