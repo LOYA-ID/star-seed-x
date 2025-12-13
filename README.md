@@ -305,5 +305,4 @@ Log files are automatically rotated when they reach 10MB.
 
 ## License
 
-ISC
-
+MIT
