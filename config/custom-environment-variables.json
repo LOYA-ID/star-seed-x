@@ -1,0 +1,34 @@
+{
+  "source": {
+    "host": "SOURCE_DB_HOST",
+    "port": "SOURCE_DB_PORT",
+    "user": "SOURCE_DB_USER",
+    "password": "SOURCE_DB_PASSWORD",
+    "database": "SOURCE_DB_NAME",
+    "table": "SOURCE_TABLE_NAME",
+    "connectionPoolSize": "SOURCE_POOL_SIZE"
+  },
+  "destination": {
+    "host": "DEST_DB_HOST",
+    "port": "DEST_DB_PORT",
+    "user": "DEST_DB_USER",
+    "password": "DEST_DB_PASSWORD",
+    "database": "DEST_DB_NAME",
+    "table": "DEST_TABLE_NAME",
+    "connectionPoolSize": "DEST_POOL_SIZE"
+  },
+  "etl": {
+    "batchSize": "ETL_BATCH_SIZE",
+    "primaryKeyColumn": "ETL_PRIMARY_KEY_COLUMN",
+    "deletedFlagColumn": "ETL_DELETED_FLAG_COLUMN",
+    "sqlQuery": "ETL_SQL_QUERY",
+    "cronSchedule": "ETL_CRON_SCHEDULE"
+  },
+  "sqlite": {
+    "dbPath": "SQLITE_DB_PATH"
+  },
+  "logging": {
+    "level": "LOG_LEVEL",
+    "logDir": "LOG_DIR"
+  }
+}
