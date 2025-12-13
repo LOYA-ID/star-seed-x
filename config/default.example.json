@@ -6,7 +6,10 @@
     "password": "your_source_password",
     "database": "your_source_database",
     "table": "your_source_table",
-    "connectionPoolSize": 5
+    "connectionPoolSize": 5,
+    "queryTimeout": 300000,
+    "maxRetries": 3,
+    "retryDelay": 1000
   },
   "destination": {
     "host": "localhost",
@@ -15,14 +18,20 @@
     "password": "your_dest_password",
     "database": "your_dest_database",
     "table": "your_dest_table",
-    "connectionPoolSize": 5
+    "connectionPoolSize": 5,
+    "queryTimeout": 300000,
+    "maxRetries": 3,
+    "retryDelay": 1000
   },
   "etl": {
     "batchSize": 1000,
     "primaryKeyColumn": "id",
     "deletedFlagColumn": "is_deleted",
     "sqlQuery": "SELECT * FROM {{table}}",
-    "cronSchedule": "*/5 * * * *"
+    "cronSchedule": "*/5 * * * *",
+    "maxRetries": 3,
+    "retryDelay": 1000,
+    "forceFullRefresh": false
   },
   "sqlite": {
     "dbPath": "./data/etl_state.db"

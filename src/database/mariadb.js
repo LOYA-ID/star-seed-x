@@ -2,13 +2,18 @@ const mariadb = require('mariadb');
 const logger = require('../logger');
 
 /**
- * MariaDB connection pool manager
+ * MariaDB connection pool manager with transaction support, retry logic, and timeouts
  */
 class MariaDBPool {
   constructor(name, config) {
     this.name = name;
     this.config = config;
     this.pool = null;
+    // Retry configuration
+    this.maxRetries = config.maxRetries || 3;
+    this.retryDelay = config.retryDelay || 1000; // ms
+    // Query timeout (default 5 minutes)
+    this.queryTimeout = config.queryTimeout || 300000;
   }
 
   /**
@@ -25,12 +30,15 @@ class MariaDBPool {
         connectionLimit: this.config.connectionPoolSize,
         acquireTimeout: 30000,
         idleTimeout: 60000,
+        connectTimeout: 30000,        // Connection timeout
+        socketTimeout: this.queryTimeout, // Socket timeout for long queries
         minimumIdle: 1,
         bigIntAsNumber: true,  // Convert BigInt to Number
         insertIdAsNumber: true // Convert insert ID to Number
       });
 
       logger.info(`${this.name} MariaDB pool initialized successfully`);
+      logger.info(`${this.name} Query timeout: ${this.queryTimeout}ms, Max retries: ${this.maxRetries}`);
       return true;
     } catch (error) {
       logger.error(`Failed to initialize ${this.name} MariaDB pool: ${error.message}`);
@@ -62,6 +70,154 @@ class MariaDBPool {
         conn.release();
       }
     }
+  }
+
+  /**
+   * Execute a query with retry logic
+   * @param {string} sql - SQL query
+   * @param {Array} params - Query parameters
+   * @param {number} retries - Number of retries (optional)
+   * @returns {*} Query result
+   */
+  async queryWithRetry(sql, params = [], retries = null) {
+    const maxAttempts = retries !== null ? retries : this.maxRetries;
+    let lastError;
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        return await this.query(sql, params);
+      } catch (error) {
+        lastError = error;
+        
+        // Check if error is retryable
+        if (this.isRetryableError(error) && attempt < maxAttempts) {
+          const delay = this.retryDelay * attempt; // Exponential backoff
+          logger.warn(`${this.name} query failed (attempt ${attempt}/${maxAttempts}): ${error.message}. Retrying in ${delay}ms...`);
+          await this.sleep(delay);
+        } else {
+          throw error;
+        }
+      }
+    }
+
+    throw lastError;
+  }
+
+  /**
+   * Check if an error is retryable
+   * @param {Error} error - The error to check
+   * @returns {boolean} Whether the error is retryable
+   */
+  isRetryableError(error) {
+    const retryableCodes = [
+      'PROTOCOL_CONNECTION_LOST',
+      'ER_LOCK_DEADLOCK',
+      'ER_LOCK_WAIT_TIMEOUT',
+      'ECONNRESET',
+      'ECONNREFUSED',
+      'ETIMEDOUT',
+      'ER_CON_COUNT_ERROR',
+      'ER_TOO_MANY_USER_CONNECTIONS'
+    ];
+    
+    return retryableCodes.some(code => 
+      error.code === code || 
+      error.message.includes(code) ||
+      error.message.includes('connection') ||
+      error.message.includes('timeout')
+    );
+  }
+
+  /**
+   * Sleep helper function
+   * @param {number} ms - Milliseconds to sleep
+   */
+  sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  /**
+   * Begin a transaction and return the connection
+   * @returns {Object} Connection with active transaction
+   */
+  async beginTransaction() {
+    const conn = await this.getConnection();
+    try {
+      await conn.beginTransaction();
+      logger.debug(`${this.name} transaction started`);
+      return conn;
+    } catch (error) {
+      conn.release();
+      throw error;
+    }
+  }
+
+  /**
+   * Commit a transaction
+   * @param {Object} conn - Connection with active transaction
+   */
+  async commitTransaction(conn) {
+    try {
+      await conn.commit();
+      logger.debug(`${this.name} transaction committed`);
+    } finally {
+      conn.release();
+    }
+  }
+
+  /**
+   * Rollback a transaction
+   * @param {Object} conn - Connection with active transaction
+   */
+  async rollbackTransaction(conn) {
+    try {
+      await conn.rollback();
+      logger.debug(`${this.name} transaction rolled back`);
+    } finally {
+      conn.release();
+    }
+  }
+
+  /**
+   * Execute a query within a transaction
+   * @param {Object} conn - Connection with active transaction
+   * @param {string} sql - SQL query
+   * @param {Array} params - Query parameters
+   * @returns {*} Query result
+   */
+  async queryInTransaction(conn, sql, params = []) {
+    return await conn.query(sql, params);
+  }
+
+  /**
+   * Execute a query within a transaction with retry logic
+   * @param {Object} conn - Connection with active transaction
+   * @param {string} sql - SQL query
+   * @param {Array} params - Query parameters
+   * @param {number} maxAttempts - Max retry attempts
+   * @returns {*} Query result
+   */
+  async queryInTransactionWithRetry(conn, sql, params = [], maxAttempts = 3) {
+    let lastError;
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        return await conn.query(sql, params);
+      } catch (error) {
+        lastError = error;
+        
+        // Only retry on certain errors (not constraint violations, etc.)
+        if (this.isRetryableError(error) && attempt < maxAttempts) {
+          const delay = this.retryDelay * attempt;
+          logger.warn(`${this.name} query in transaction failed (attempt ${attempt}/${maxAttempts}): ${error.message}. Retrying in ${delay}ms...`);
+          await this.sleep(delay);
+        } else {
+          throw error;
+        }
+      }
+    }
+
+    throw lastError;
   }
 
   /**

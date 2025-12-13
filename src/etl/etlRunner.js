@@ -88,6 +88,9 @@ class ETLRunner {
         throw new Error('Pre-flight checks failed: ' + preFlightResult.errors.join(', '));
       }
 
+      // Check fresh start conditions (forceFullRefresh or empty destination)
+      await this.checkFreshStartConditions();
+
       // SQL Query syntax validation
       const selectQuery = config.etl.sqlQuery.replace('{{table}}', config.source.table);
       logger.info('Validating SQL query syntax...');
@@ -194,6 +197,43 @@ class ETLRunner {
   }
 
   /**
+   * Check and handle fresh start conditions
+   * Clears checkpoints if:
+   * 1. forceFullRefresh config is true
+   * 2. Destination table is empty
+   */
+  async checkFreshStartConditions() {
+    const sourceTable = config.source.table;
+    const destTable = config.destination.table;
+
+    // Option 1: Config option forceFullRefresh
+    if (config.etl.forceFullRefresh) {
+      logger.info('========================================');
+      logger.info('FORCE FULL REFRESH ENABLED');
+      logger.info('Clearing all checkpoints and state...');
+      logger.info('========================================');
+      sqliteManager.clearAllState(sourceTable, destTable);
+      return true;
+    }
+
+    // Option 2: Clear checkpoint when destination is empty
+    const destRowCount = await this.destPool.getRowCount(destTable);
+    if (destRowCount === 0) {
+      const checkpoint = sqliteManager.getCheckpoint(sourceTable, destTable, 'full');
+      if (checkpoint) {
+        logger.info('========================================');
+        logger.info('DESTINATION TABLE IS EMPTY');
+        logger.info('Clearing stale checkpoints for fresh start...');
+        logger.info('========================================');
+        sqliteManager.clearAllState(sourceTable, destTable);
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  /**
    * Shutdown the ETL runner and close all connections
    */
   async shutdown() {
@@ -212,6 +252,23 @@ class ETLRunner {
     } catch (error) {
       logger.error(`Error during shutdown: ${error.message}`);
     }
+  }
+
+  /**
+   * Clear all checkpoints and state (for CLI command)
+   */
+  static clearCheckpoints() {
+    const sqliteManager = require('../database/sqlite');
+    const config = require('../config');
+    
+    sqliteManager.initialize();
+    const result = sqliteManager.clearAllState(
+      config.source.table,
+      config.destination.table
+    );
+    sqliteManager.close();
+    
+    return result;
   }
 }
 
