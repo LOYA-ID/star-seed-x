@@ -4,7 +4,7 @@ A lightweight Node.js ETL (Extract, Transform, Load) pipeline for transferring d
 
 ## Why Star Seed X?
 
-### 🚀 High Performance with Low Resource Usage
+### High Performance with Low Resource Usage
 
 | Feature | Benefit |
 |---------|---------|
@@ -14,7 +14,7 @@ A lightweight Node.js ETL (Extract, Transform, Load) pipeline for transferring d
 | **Row-by-Row Insert** | Controlled memory footprint within transactions |
 | **Incremental Sync** | After initial full load, only transfers new/changed data |
 
-### 📉 Low Bandwidth & Small Footprint
+### Low Bandwidth & Small Footprint
 
 ```
 Traditional Approach (OFFSET pagination):
@@ -22,7 +22,7 @@ Traditional Approach (OFFSET pagination):
 │ SELECT * FROM table LIMIT 1000 OFFSET 0      → Fast     │
 │ SELECT * FROM table LIMIT 1000 OFFSET 10000  → Slow     │
 │ SELECT * FROM table LIMIT 1000 OFFSET 100000 → Very Slow│
-│ SELECT * FROM table LIMIT 1000 OFFSET 1M     → 💀       │
+│ SELECT * FROM table LIMIT 1000 OFFSET 1M     → Crash    │
 └─────────────────────────────────────────────────────────┘
 Database must scan and skip N rows each time!
 
@@ -36,7 +36,7 @@ Star Seed X (Seek/Keyset pagination):
 Uses index seek - consistent O(log n) performance!
 ```
 
-### 🔗 Handles Complex JOINs with Large Data
+### Handles Complex JOINs with Large Data
 
 Star Seed X fully supports complex multi-table JOIN queries:
 
@@ -71,12 +71,12 @@ WHERE o.order_date >= '2025-01-01'
 ```
 
 **Key advantages for JOIN queries:**
-- ✅ Query is executed in batches - database handles JOIN optimization
-- ✅ Memory stays constant regardless of total result size
-- ✅ Checkpoint saves progress - resume after network/server issues
-- ✅ Works with any valid SELECT including aggregations and subqueries
+- Query is executed in batches - database handles JOIN optimization
+- Memory stays constant regardless of total result size
+- Checkpoint saves progress - resume after network/server issues
+- Works with any valid SELECT including aggregations and subqueries
 
-### 💾 Memory Comparison
+### Memory Comparison
 
 | Scenario | Traditional ETL | Star Seed X |
 |----------|-----------------|-------------|
@@ -338,20 +338,20 @@ Before transferring data, the application validates that source and destination 
 
 | Check | Result | Description |
 |-------|--------|-------------|
-| Source column missing in destination | ❌ **ERROR** | Fails validation - cannot insert data |
-| Different data types | ⚠️ **WARNING** | Logs warning but continues |
-| Source allows NULL, destination doesn't | ⚠️ **WARNING** | May cause insert failures at runtime |
-| Extra columns in destination | ⚠️ **WARNING** | OK - destination can have additional columns |
+| Source column missing in destination | **ERROR** | Fails validation - cannot insert data |
+| Different data types | **WARNING** | Logs warning but continues |
+| Source allows NULL, destination doesn't | **WARNING** | May cause insert failures at runtime |
+| Extra columns in destination | **WARNING** | OK - destination can have additional columns |
 
 ### Schema Requirements
 
 ```
 Source Table                  Destination Table
 ┌─────────────────────┐      ┌─────────────────────┐
-│ id (INT)            │  →   │ id (INT)            │  ✅ Must exist
-│ name (VARCHAR)      │  →   │ name (VARCHAR)      │  ✅ Must exist  
-│ email (VARCHAR)     │  →   │ email (VARCHAR)     │  ✅ Must exist
-└─────────────────────┘      │ created_at (DATE)   │  ⚠️ OK (extra column)
+│ id (INT)            │  →   │ id (INT)            │  Must exist
+│ name (VARCHAR)      │  →   │ name (VARCHAR)      │  Must exist  
+│ email (VARCHAR)     │  →   │ email (VARCHAR)     │  Must exist
+└─────────────────────┘      │ created_at (DATE)   │  OK (extra column)
                              └─────────────────────┘
 ```
 
