@@ -2,6 +2,89 @@
 
 A lightweight Node.js ETL (Extract, Transform, Load) pipeline for transferring data between MariaDB servers.
 
+## Why Star Seed X?
+
+### 🚀 High Performance with Low Resource Usage
+
+| Feature | Benefit |
+|---------|---------|
+| **Seek/Keyset Pagination** | Uses `WHERE pk > last_value` instead of `OFFSET` - O(log n) vs O(n) performance |
+| **Batch Processing** | Processes data in configurable chunks, never loads entire dataset into memory |
+| **Checkpoint/Resume** | Survives crashes - automatically resumes from last successful batch |
+| **Row-by-Row Insert** | Controlled memory footprint within transactions |
+| **Incremental Sync** | After initial full load, only transfers new/changed data |
+
+### 📉 Low Bandwidth & Small Footprint
+
+```
+Traditional Approach (OFFSET pagination):
+┌─────────────────────────────────────────────────────────┐
+│ SELECT * FROM table LIMIT 1000 OFFSET 0      → Fast     │
+│ SELECT * FROM table LIMIT 1000 OFFSET 10000  → Slow     │
+│ SELECT * FROM table LIMIT 1000 OFFSET 100000 → Very Slow│
+│ SELECT * FROM table LIMIT 1000 OFFSET 1M     → 💀       │
+└─────────────────────────────────────────────────────────┘
+Database must scan and skip N rows each time!
+
+Star Seed X (Seek/Keyset pagination):
+┌─────────────────────────────────────────────────────────┐
+│ SELECT * FROM table WHERE id > 0 LIMIT 1000      → Fast │
+│ SELECT * FROM table WHERE id > 10000 LIMIT 1000  → Fast │
+│ SELECT * FROM table WHERE id > 100000 LIMIT 1000 → Fast │
+│ SELECT * FROM table WHERE id > 1000000 LIMIT 1000→ Fast │
+└─────────────────────────────────────────────────────────┘
+Uses index seek - consistent O(log n) performance!
+```
+
+### 🔗 Handles Complex JOINs with Large Data
+
+Star Seed X fully supports complex multi-table JOIN queries:
+
+```sql
+-- Your complex query in config:
+SELECT
+    u.pk_id AS id,
+    u.name AS user_name,
+    o.id AS order_id,
+    o.order_date,
+    p.name AS product_name,
+    oi.qty,
+    oi.price
+FROM users u
+JOIN orders o ON o.user_id = u.id
+JOIN order_items oi ON oi.order_id = o.id
+JOIN products p ON p.id = oi.product_id
+WHERE o.order_date >= '2025-01-01'
+```
+
+**How it works internally:**
+
+```sql
+-- Batch 1: First 1000 rows
+{your_query} ORDER BY `id` ASC LIMIT 1000
+
+-- Batch 2: Next 1000 rows (seeks directly to id > 1000)
+{your_query} AND `id` > 1000 ORDER BY `id` ASC LIMIT 1000
+
+-- Batch N: Continues from checkpoint
+{your_query} AND `id` > {last_checkpoint} ORDER BY `id` ASC LIMIT 1000
+```
+
+**Key advantages for JOIN queries:**
+- ✅ Query is executed in batches - database handles JOIN optimization
+- ✅ Memory stays constant regardless of total result size
+- ✅ Checkpoint saves progress - resume after network/server issues
+- ✅ Works with any valid SELECT including aggregations and subqueries
+
+### 💾 Memory Comparison
+
+| Scenario | Traditional ETL | Star Seed X |
+|----------|-----------------|-------------|
+| 1M rows, 1KB each | ~1GB RAM | ~1MB RAM (1000 batch) |
+| 10M rows | ~10GB RAM or OOM | ~1MB RAM |
+| Network interruption | Start over | Resume from checkpoint |
+| Complex JOINs | Load all → process | Stream in batches |
+
 ## Features
 
 - **Three ETL Modes:**
