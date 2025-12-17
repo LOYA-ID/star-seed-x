@@ -99,6 +99,7 @@ WHERE o.order_date >= '2025-01-01'
 - **Comprehensive Logging**: Winston-based logging with file rotation
 - **PM2 Support**: Production-ready with PM2 process manager
 - **Schema Validation**: Validates compatibility between source and destination tables
+- **Multi-Job Support**: Run multiple ETL jobs in parallel with separate configurations
 
 ## Installation
 
@@ -106,97 +107,136 @@ WHERE o.order_date >= '2025-01-01'
 npm install
 ```
 
-## Configuration
+## Multi-Job Configuration
 
-The application uses the [node-config](https://www.npmjs.com/package/config) package for configuration management.
+Star Seed X supports running multiple ETL jobs in parallel, each with its own configuration file.
 
-### Configuration Files
+### Creating a Job
 
-| File | Purpose |
-|------|---------|
-| `config/default.json` | Base configuration with default values |
-| `config/custom-environment-variables.json` | Maps environment variables to config keys |
-
-### How Configuration Works
-
-1. **default.json** - Contains actual default values used when the app runs
-2. **custom-environment-variables.json** - Defines which environment variables can override defaults
-
-**Priority (highest to lowest):**
-1. Environment variables (if defined)
-2. default.json values
-
-### Example
+1. Create a job configuration file in the `config/` directory:
 
 ```bash
-# Uses default.json value "localhost"
-npm start
+# Copy the example template
+cp config/job.example.json config/myjob.json
 
-# Environment variable overrides default
-SOURCE_DB_HOST=192.168.1.100 npm start
+# Edit with your settings
+nano config/myjob.json
 ```
 
-### Default Configuration
-
-Edit `config/default.json` to configure your ETL pipeline:
+2. Each job config file should contain:
 
 ```json
 {
   "source": {
-    "host": "localhost",
+    "host": "source-server",
     "port": 3306,
-    "user": "root",
-    "password": "",
+    "user": "user",
+    "password": "password",
     "database": "source_db",
-    "table": "source_table",
-    "connectionPoolSize": 5
+    "table": "source_table"
   },
   "destination": {
-    "host": "localhost",
+    "host": "dest-server",
     "port": 3306,
-    "user": "root",
-    "password": "",
-    "database": "destination_db",
-    "table": "destination_table",
-    "connectionPoolSize": 5
+    "user": "user",
+    "password": "password",
+    "database": "dest_db",
+    "table": "dest_table"
   },
   "etl": {
     "batchSize": 1000,
     "primaryKeyColumn": "id",
-    "deletedFlagColumn": "is_deleted",
-    "sqlQuery": "SELECT * FROM {{table}}",
     "cronSchedule": "*/5 * * * *"
-  },
-  "sqlite": {
-    "dbPath": "./data/etl_state.db"
-  },
-  "logging": {
-    "level": "info",
-    "logDir": "./logs"
   }
 }
 ```
 
+### Running Jobs
+
+**Single Job (Manual/Development):**
+```bash
+# Run a specific job
+npm run start -- --job myjob
+
+# Or using node directly
+node src/index.js --job myjob
+```
+
+**All Jobs with PM2 (Production):**
+```bash
+# Auto-discover and start all jobs
+npm run pm2:start
+
+# List running jobs
+npm run pm2:list
+
+# View logs for all jobs
+npm run pm2:logs
+
+# View logs for specific job
+npm run pm2:logs:job star-seed-x-myjob
+
+# Stop all jobs
+npm run pm2:stop
+
+# Restart all jobs
+npm run pm2:restart
+```
+
+### Job Isolation
+
+Each job is completely isolated with:
+- **Own SQLite database**: `data/{jobname}_state.db`
+- **Own log files**: `logs/{jobname}/etl.log`
+- **Own PM2 process**: `star-seed-x-{jobname}`
+
+### List Available Jobs
+
+```bash
+npm run jobs:list
+```
+
+### Clear Job Checkpoint
+
+```bash
+# Clear checkpoint for specific job
+npm run etl:clear-checkpoint -- --job myjob
+
+# Clear all checkpoints for a job
+npm run etl:clear-checkpoint -- --job myjob --all
+```
+
+## Job Configuration Reference
+
+Each job config file (`config/{jobname}.json`) supports these parameters:
+
 ### Configuration Parameters
 
-| Parameter | Description |
-|-----------|-------------|
-| `source.host` | Source MariaDB server hostname |
-| `source.port` | Source MariaDB server port |
-| `source.user` | Source database username |
-| `source.password` | Source database password |
-| `source.database` | Source database name |
-| `source.table` | Source table name |
-| `source.connectionPoolSize` | Connection pool size for source |
-| `destination.*` | Same as source, for destination server |
-| `etl.batchSize` | Number of rows to read per batch |
-| `etl.primaryKeyColumn` | Primary key column name |
-| `etl.deletedFlagColumn` | Column name for soft-delete flag |
-| `etl.sqlQuery` | SQL query template (use `{{table}}` as placeholder) |
-| `etl.cronSchedule` | Cron expression for scheduled runs |
-| `sqlite.dbPath` | Path to SQLite state database |
-| `logging.level` | Log level (error, warn, info, debug) |
-| `logging.logDir` | Directory for log files |
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `source.host` | Source MariaDB server hostname | required |
+| `source.port` | Source MariaDB server port | 3306 |
+| `source.user` | Source database username | required |
+| `source.password` | Source database password | required |
+| `source.database` | Source database name | required |
+| `source.table` | Source table name | required |
+| `source.connectionPoolSize` | Connection pool size | 5 |
+| `source.queryTimeout` | Query timeout in ms | 300000 |
+| `source.maxRetries` | Max retry attempts | 3 |
+| `source.retryDelay` | Delay between retries in ms | 1000 |
+| `destination.*` | Same as source, for destination server | |
+| `etl.batchSize` | Number of rows per batch | 1000 |
+| `etl.primaryKeyColumn` | Primary key column name | "id" |
+| `etl.deletedFlagColumn` | Column for soft-delete flag | "is_deleted" |
+| `etl.sqlQuery` | SQL query template | "SELECT * FROM {{table}}" |
+| `etl.cronSchedule` | Cron expression for scheduled runs | "*/5 * * * *" |
+| `etl.maxRetries` | ETL max retry attempts | 3 |
+| `etl.retryDelay` | ETL retry delay in ms | 1000 |
+| `etl.forceFullRefresh` | Force full refresh on each run | false |
+| `etl.recordDelay` | Delay between records in ms | 0 |
+| `logging.level` | Log level (error, warn, info, debug) | "info" |
+
+**Note:** `sqlite.dbPath` and `logging.logDir` are auto-generated based on job name if not specified.
 
 ### SQL Query Configuration
 
@@ -224,65 +264,37 @@ The `etl.sqlQuery` parameter supports custom SQL queries including JOINs and col
 - All columns returned by your query must exist in the destination table
 - For incremental load, ensure the primary key column is included in your SELECT
 
-### Environment Variables
-
-You can override any configuration using environment variables. The mapping is defined in `config/custom-environment-variables.json`:
-
-| Environment Variable | Config Path |
-|---------------------|-------------|
-| `SOURCE_DB_HOST` | source.host |
-| `SOURCE_DB_PORT` | source.port |
-| `SOURCE_DB_USER` | source.user |
-| `SOURCE_DB_PASSWORD` | source.password |
-| `SOURCE_DB_NAME` | source.database |
-| `SOURCE_TABLE_NAME` | source.table |
-| `SOURCE_POOL_SIZE` | source.connectionPoolSize |
-| `DEST_DB_HOST` | destination.host |
-| `DEST_DB_PORT` | destination.port |
-| `DEST_DB_USER` | destination.user |
-| `DEST_DB_PASSWORD` | destination.password |
-| `DEST_DB_NAME` | destination.database |
-| `DEST_TABLE_NAME` | destination.table |
-| `DEST_POOL_SIZE` | destination.connectionPoolSize |
-| `ETL_BATCH_SIZE` | etl.batchSize |
-| `ETL_PRIMARY_KEY_COLUMN` | etl.primaryKeyColumn |
-| `ETL_DELETED_FLAG_COLUMN` | etl.deletedFlagColumn |
-| `ETL_SQL_QUERY` | etl.sqlQuery |
-| `ETL_CRON_SCHEDULE` | etl.cronSchedule |
-| `SQLITE_DB_PATH` | sqlite.dbPath |
-| `LOG_LEVEL` | logging.level |
-| `LOG_DIR` | logging.logDir |
-
-**Tip:** Use environment variables in production to avoid committing sensitive data (passwords) to version control.
-
 ## Usage
 
 ### Development Mode
 
 ```bash
-npm run dev
+npm run dev -- --job myjob
 ```
 
 ### Production Mode
 
 ```bash
-npm start
+npm run start -- --job myjob
 ```
 
-### With PM2
+### With PM2 (All Jobs)
 
 ```bash
-# Start the application
+# Start all jobs
 npm run pm2:start
 
-# Stop the application
+# Stop all jobs
 npm run pm2:stop
 
-# Restart the application
+# Restart all jobs
 npm run pm2:restart
 
 # View logs
 npm run pm2:logs
+
+# List running jobs
+npm run pm2:list
 ```
 
 ## ETL Modes

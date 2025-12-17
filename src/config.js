@@ -1,79 +1,82 @@
 /**
- * Load environment variables from .env file (if exists)
- * Must be loaded BEFORE requiring 'config' package
+ * Configuration loader for multi-job ETL pipeline
+ * Supports job-specific configuration files in config/{jobName}.json
  */
-require('dotenv').config();
+const { currentJobName, loadJobConfig, listAvailableJobs } = require('./jobConfig');
 
-const config = require('config');
-const fs = require('fs');
-const path = require('path');
-
-/**
- * Check for mandatory configuration files
- */
-const configDir = path.join(process.cwd(), 'config');
-const defaultConfigPath = path.join(configDir, 'default.json');
-
-if (!fs.existsSync(defaultConfigPath)) {
+// Validate that a job name is provided
+if (!currentJobName) {
   console.error('========================================');
-  console.error('ERROR: Missing mandatory configuration file');
+  console.error('ERROR: No job name specified');
   console.error('========================================');
-  console.error(`File not found: ${defaultConfigPath}`);
+  console.error('Usage: npm run start -- <jobname>');
+  console.error('       npm run start -- --job <jobname>');
+  console.error('       node src/index.js <jobname>');
   console.error('');
-  console.error('To fix this:');
-  console.error('1. Copy config/default.example.json to config/default.json');
-  console.error('2. Edit config/default.json with your database settings');
-  console.error('');
-  console.error('Or use environment variables (see .env.example)');
+  
+  const availableJobs = listAvailableJobs();
+  if (availableJobs.length > 0) {
+    console.error('Available jobs:');
+    availableJobs.forEach(job => console.error(`  - ${job}`));
+  } else {
+    console.error('No job configuration files found.');
+    console.error('Create a job config file:');
+    console.error('  cp config/job.json.example config/<jobname>.json');
+  }
+  
   console.error('========================================');
   process.exit(1);
 }
 
+// Load job-specific configuration
+const jobConfig = loadJobConfig(currentJobName);
+
 /**
- * Configuration loader for ETL pipeline
+ * Configuration object for ETL pipeline
  */
 const appConfig = {
+  jobName: currentJobName,
   source: {
-    host: config.get('source.host'),
-    port: config.get('source.port'),
-    user: config.get('source.user'),
-    password: config.get('source.password'),
-    database: config.get('source.database'),
-    table: config.get('source.table'),
-    connectionPoolSize: config.get('source.connectionPoolSize'),
-    queryTimeout: config.get('source.queryTimeout'),
-    maxRetries: config.get('source.maxRetries'),
-    retryDelay: config.get('source.retryDelay')
+    host: jobConfig.source.host,
+    port: jobConfig.source.port,
+    user: jobConfig.source.user,
+    password: jobConfig.source.password,
+    database: jobConfig.source.database,
+    table: jobConfig.source.table,
+    connectionPoolSize: jobConfig.source.connectionPoolSize || 5,
+    queryTimeout: jobConfig.source.queryTimeout || 300000,
+    maxRetries: jobConfig.source.maxRetries || 3,
+    retryDelay: jobConfig.source.retryDelay || 1000
   },
   destination: {
-    host: config.get('destination.host'),
-    port: config.get('destination.port'),
-    user: config.get('destination.user'),
-    password: config.get('destination.password'),
-    database: config.get('destination.database'),
-    table: config.get('destination.table'),
-    connectionPoolSize: config.get('destination.connectionPoolSize'),
-    queryTimeout: config.get('destination.queryTimeout'),
-    maxRetries: config.get('destination.maxRetries'),
-    retryDelay: config.get('destination.retryDelay')
+    host: jobConfig.destination.host,
+    port: jobConfig.destination.port,
+    user: jobConfig.destination.user,
+    password: jobConfig.destination.password,
+    database: jobConfig.destination.database,
+    table: jobConfig.destination.table,
+    connectionPoolSize: jobConfig.destination.connectionPoolSize || 5,
+    queryTimeout: jobConfig.destination.queryTimeout || 300000,
+    maxRetries: jobConfig.destination.maxRetries || 3,
+    retryDelay: jobConfig.destination.retryDelay || 1000
   },
   etl: {
-    batchSize: config.get('etl.batchSize'),
-    primaryKeyColumn: config.get('etl.primaryKeyColumn'),
-    deletedFlagColumn: config.get('etl.deletedFlagColumn'),
-    sqlQuery: config.get('etl.sqlQuery'),
-    cronSchedule: config.get('etl.cronSchedule'),
-    maxRetries: config.get('etl.maxRetries'),
-    retryDelay: config.get('etl.retryDelay'),
-    forceFullRefresh: config.get('etl.forceFullRefresh'),
-    recordDelay: config.get('etl.recordDelay')
+    batchSize: jobConfig.etl.batchSize || 1000,
+    primaryKeyColumn: jobConfig.etl.primaryKeyColumn || 'id',
+    deletedFlagColumn: jobConfig.etl.deletedFlagColumn || 'is_deleted',
+    sqlQuery: jobConfig.etl.sqlQuery || 'SELECT * FROM {{table}}',
+    cronSchedule: jobConfig.etl.cronSchedule || '*/5 * * * *',
+    maxRetries: jobConfig.etl.maxRetries || 3,
+    retryDelay: jobConfig.etl.retryDelay || 1000,
+    forceFullRefresh: jobConfig.etl.forceFullRefresh || false,
+    recordDelay: jobConfig.etl.recordDelay || 0
   },
   sqlite: {
-    dbPath: config.get('sqlite.dbPath')
+    dbPath: jobConfig.sqlite.dbPath
   },
   logging: {
-    level: config.get('logging.level'),
-    logDir: config.get('logging.logDir')
+    level: jobConfig.logging.level,
+    logDir: jobConfig.logging.logDir
   }
 };
 

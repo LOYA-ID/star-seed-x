@@ -19,6 +19,7 @@ class Application {
   async start() {
     logger.info('========================================');
     logger.info('Star Seed X - ETL Pipeline');
+    logger.info(`Job: ${config.jobName}`);
     logger.info('========================================');
     logger.info(`Starting application...`);
 

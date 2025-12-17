@@ -16,9 +16,10 @@ report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 data/
 *.db
 
-# Config overrides (keep default.json)
-config/local.json
-config/production.json
+# Config overrides (keep job.json.example template)
+# Only .json files in config/ are loaded as jobs
+config/*.json
+!config/job.json.example
 
 # PM2
 .pm2/
@@ -79,10 +80,9 @@ web_modules/
 # Yarn Integrity file
 .yarn-integrity
 
-# dotenv environment variable files
+# Environment files (not used - use config/*.json instead)
 .env
 .env.*
-!.env.example
 
 # parcel-bundler cache (https://parceljs.org/)
 .cache
@@ -155,7 +155,6 @@ vite.config.ts.timestamp-*
 
 # AI/Copilot files
 CLAUDE.md
-claude.md 
 .prompts
 
 # OS generated files

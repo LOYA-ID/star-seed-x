@@ -3,6 +3,9 @@ const path = require('path');
 const fs = require('fs');
 const config = require('./config');
 
+// Get job name for log labeling
+const jobName = config.jobName || 'unknown';
+
 // Ensure log directory exists
 const logDir = config.logging.logDir;
 if (!fs.existsSync(logDir)) {
@@ -15,9 +18,9 @@ const fileFormat = winston.format.combine(
   winston.format.errors({ stack: true }),
   winston.format.printf(({ level, message, timestamp, stack }) => {
     if (stack) {
-      return `${timestamp} [${level.toUpperCase()}]: ${message}\n${stack}`;
+      return `${timestamp} [${level.toUpperCase()}] [${jobName}]: ${message}\n${stack}`;
     }
-    return `${timestamp} [${level.toUpperCase()}]: ${message}`;
+    return `${timestamp} [${level.toUpperCase()}] [${jobName}]: ${message}`;
   })
 );
 
@@ -28,9 +31,9 @@ const consoleFormat = winston.format.combine(
   winston.format.colorize({ all: false, level: true }),
   winston.format.printf(({ level, message, timestamp, stack }) => {
     if (stack) {
-      return `${timestamp} [${level}]: ${message}\n${stack}`;
+      return `${timestamp} [${level}] [${jobName}]: ${message}\n${stack}`;
     }
-    return `${timestamp} [${level}]: ${message}`;
+    return `${timestamp} [${level}] [${jobName}]: ${message}`;
   })
 );
 
