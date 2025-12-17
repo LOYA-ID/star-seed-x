@@ -2,10 +2,10 @@
   "source": {
     "host": "localhost",
     "port": 3306,
-    "user": "your_source_user",
-    "password": "your_source_password",
-    "database": "your_source_database",
-    "table": "your_source_table",
+    "user": "root",
+    "password": "password",
+    "database": "source_db",
+    "table": "source_table",
     "connectionPoolSize": 5,
     "queryTimeout": 300000,
     "maxRetries": 3,
@@ -14,10 +14,10 @@
   "destination": {
     "host": "localhost",
     "port": 3306,
-    "user": "your_dest_user",
-    "password": "your_dest_password",
-    "database": "your_dest_database",
-    "table": "your_dest_table",
+    "user": "root",
+    "password": "password",
+    "database": "destination_db",
+    "table": "destination_table",
     "connectionPoolSize": 5,
     "queryTimeout": 300000,
     "maxRetries": 3,
@@ -34,11 +34,7 @@
     "forceFullRefresh": false,
     "recordDelay": 0
   },
-  "sqlite": {
-    "dbPath": "./data/etl_state.db"
-  },
   "logging": {
-    "level": "info",
-    "logDir": "./logs"
+    "level": "info"
   }
 }

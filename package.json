@@ -4,13 +4,26 @@
   "description": "ETL pipeline to transfer data between MariaDB servers",
   "main": "src/index.js",
   "scripts": {
-    "start": "node src/index.js",
+    "start": "node src/cli/killProcess.js && node src/index.js",
+    "start:fresh": "node src/cli/killProcess.js && node src/index.js",
+    "start:only": "node src/index.js",
     "dev": "node --watch src/index.js",
+    "kill": "node src/cli/killProcess.js",
+    "kill:all": "node src/cli/killProcess.js",
     "etl:clear-checkpoint": "node src/cli/clearCheckpoint.js",
-    "pm2:start": "pm2 start ecosystem.config.js",
-    "pm2:stop": "pm2 stop star-seed-x",
-    "pm2:restart": "pm2 restart star-seed-x",
-    "pm2:logs": "pm2 logs star-seed-x"
+    "pm2:start": "node src/cli/killProcess.js && pm2 start ecosystem.config.js",
+    "pm2:start:fresh": "node src/cli/killProcess.js && pm2 start ecosystem.config.js",
+    "pm2:start:job": "pm2 start src/index.js --name",
+    "pm2:stop": "pm2 stop all",
+    "pm2:stop:job": "pm2 stop",
+    "pm2:restart": "pm2 restart all",
+    "pm2:restart:job": "pm2 restart",
+    "pm2:delete": "pm2 delete all",
+    "pm2:delete:job": "pm2 delete",
+    "pm2:logs": "pm2 logs",
+    "pm2:logs:job": "pm2 logs",
+    "pm2:list": "pm2 list",
+    "jobs:list": "node src/cli/listJobs.js"
   },
   "keywords": [
     "etl",
@@ -21,8 +34,6 @@
   "license": "MIT",
   "dependencies": {
     "better-sqlite3": "^9.2.2",
-    "config": "^3.3.9",
-    "dotenv": "^17.2.3",
     "mariadb": "^3.2.3",
     "node-cron": "^3.0.3",
     "winston": "^3.11.0"
